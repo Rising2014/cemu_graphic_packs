@@ -45,18 +45,26 @@ build_dir () {
 res_360p=( "Performance" 640 360 )
 res_480p=( "Performance" 854 480 )
 res_540p=( "Performance" 960 540 )
+res_576p=( "Performance" 1024 576 )
 res_720p=( "Performance" 1280 720 )
+res_768p=( "Performance" 1366 768 )
 res_900p=( "Quality" 1600 900 )
 res_1080p=( "Quality" 1920 1080 )
 res_1080p219=( "Quality" 2560 1080 )
+res_1152p=( "Quality" 2048 1152 )
 res_1440p=( "Quality" 2560 1440 )
 res_1440p219=( "Quality" 3440 1440 )
-res_1800p=( "Quality" 3200 1800  )
-res_2160p=( "Quality" 3840 2160  )
+res_1800p=( "Quality" 3200 1800 )
+res_2160p=( "Quality" 3840 2160 )
 res_2160p219=( "Quality" 5120 2160 )
+res_2304p=( "Quality" 4096 2304 )
 res_2880p=( "Enthusiast" 5120 2880 )
 res_4320p=( "Enthusiast" 7680 4320 )
+res_4608p=( "Enthusiast" 8192 4608 )
 res_5760p=( "Enthusiast" 10240 5760 )
+res_7200p=( "Enthusiast" 12800 7200 )
+res_8640p=( "Enthusiast" 15360 8640 )
+res_9216p=( "Enthusiast" 16384 9216 )
 
 std_respack () {
 	gameName=$1
@@ -89,7 +97,7 @@ std_respack () {
 	done
 }
 
-res16by9=( "360p" "480p" "540p" "720p" "900p" "1080p" "1440p" "1800p" "2160p" "2880p" "4320p" "5760p" )
+res16by9=( "360p" "480p" "540p" "576p" "720p" "768p" "900p" "1080p" "1152p" "1440p" "1800p" "2160p" "2304p" "2880p" "4320p" "4608p" "5760p" "7200p" "8640p" "9216p" )
 res21by9=( "1080p219" "1440p219" "2160p219" )
 just720p=( "720p" )
 just1080p=( "1080p" )
