@@ -23,13 +23,14 @@
 
 //##########################################################
 
-// Contrast, saturation, Gamma , Vibrance , Defog.
+// Contrast, saturation, Gamma.
 
 //Adjustable Values:
-    
-const float con = 0.80;		    // [0.0 ~ 1.5] [0.5 Default] Contrast Adjustment - or + values work
-const float sat = 0.00;	        // [0.1 ~ 1.5] [0.0 Default] Color Saturation Adjustment. - or + values work
-const float gamma = 1.43;	    // [0.0 ~ 2.5] [1.0 Default] Gamma Adjustment - or + values work
+const float gamma = 1.00;	    // [0.0 ~ 2.5] [1.0 Default] Gamma Adjustment - or + values work
+const float bloomFactor = 0.7; // 1.0 is neutral
+const float brt = 1.0;
+const float con = 0.75;
+const float sat = 0.0;
 //Luma Values for  changing color.  Machinima tool mostly.
 const float AvgLumR = 0.0;      // [0.0 ~ 1.5] [0.0 Default] Use very small increments, as it changes RGB values.
 const float AvgLumG = -0.003;   // [0.0 ~ 1.5] [0.0 Default] Use very small increments, as it changes RGB values.
@@ -44,7 +45,7 @@ const float AvgLumB = 0.0;      // [0.0 ~ 1.5] [0.0 Default] Use very small incr
 	
 const float exposure = 0.00;
 const float Bleach = 0.0;
-const float brt = 0.0;
+
 const vec3 FogColor = vec3(0.0, 0.0, 0.0); //defog Color";
 
 uniform ivec4 uf_remappedPS[1];
@@ -69,7 +70,6 @@ float mul_nonIEEE(float a, float b){ if( a == 0.0 || b == 0.0 ) return 0.0; retu
 
 vec3 TonemapPass(vec3 inputColor) {
 	vec3 color = inputColor;
-	//color = clamp(color - defog * FogColor * 2.55, 0.0, 1.0); // defog
 	color *= pow(2.0f, exposure); // exposure
 	color = pow(color, vec3(gamma)); // Gamma
 
@@ -97,6 +97,46 @@ vec3 brightnessContrast(vec3 color, float brt, float con){
     return (color - 0.5) * con + 0.5 + brt;
 }
 
+//Fake High Dynamic Range.
+#define HDRPower 1.30 // 0.0 to  8.0 "Raising this seems to make the effect stronger and also brighter."
+#define radius1 0.793 // 0.0 to  8.0 "Raising this seems to make the effect stronger and also brighter."
+#define radius2 0.87  // 0.0 to  8.0 "Raising this seems to make the effect stronger and also brighter."
+	
+vec3 HDRPass(sampler2D tex, vec2 pos){
+    vec4 colorInput = texture(tex, pos);
+    vec3 color = colorInput.rgb;
+	
+	vec3 bloom_sum1 = texture(tex, pos + vec2(1.5, -1.5) * radius1).rgb;
+	bloom_sum1 += texture(tex, pos + vec2(-1.5, -1.5) * radius1).rgb;
+	bloom_sum1 += texture(tex, pos + vec2( 1.5,  1.5) * radius1).rgb;
+	bloom_sum1 += texture(tex, pos + vec2(-1.5,  1.5) * radius1).rgb;
+	bloom_sum1 += texture(tex, pos + vec2( 0.0, -2.5) * radius1).rgb;
+	bloom_sum1 += texture(tex, pos + vec2( 0.0,  2.5) * radius1).rgb;
+	bloom_sum1 += texture(tex, pos + vec2(-2.5,  0.0) * radius1).rgb;
+	bloom_sum1 += texture(tex, pos + vec2( 2.5,  0.0) * radius1).rgb;
+
+	bloom_sum1 *= 0.005;
+
+	vec3 bloom_sum2 = texture(tex, pos + vec2(1.5, -1.5) * radius2).rgb;
+	bloom_sum2 += texture(tex, pos + vec2(-1.5, -1.5) * radius2).rgb;
+	bloom_sum2 += texture(tex, pos + vec2( 1.5,  1.5) * radius2).rgb;
+	bloom_sum2 += texture(tex, pos + vec2(-1.5,  1.5) * radius2).rgb;
+	bloom_sum2 += texture(tex, pos + vec2( 0.0, -2.5) * radius2).rgb;	
+	bloom_sum2 += texture(tex, pos + vec2( 0.0,  2.5) * radius2).rgb;
+	bloom_sum2 += texture(tex, pos + vec2(-2.5,  0.0) * radius2).rgb;
+	bloom_sum2 += texture(tex, pos + vec2( 2.5,  0.0) * radius2).rgb;
+
+	bloom_sum2 *= 0.010;
+
+	float dist = radius1 - radius2;
+	vec3 HDR = (colorInput.rgb + (bloom_sum2 - bloom_sum1)) * dist;
+	
+	vec3 blend = HDR + colorInput.rgb;
+	colorInput.rgb = pow(abs(blend), vec3(abs(HDRPower)) + HDR);
+	
+	return clamp(colorInput.rgb, 0.0,1.0);
+}
+
 void main()
 {
 vec4 R0f = vec4(0.0);
@@ -117,7 +157,8 @@ vec3 cubeMapSTM;
 int cubeMapFaceId;
 R0f = passParameterSem0;
 R1f.xyz = (texture(textureUnitPS0, R0f.xy).xyz);
-R0f.xyz = (texture(textureUnitPS1, R0f.xy).xyz);
+R1f.xyz *= bloomFactor;
+R0f.xyz = HDRPass(textureUnitPS1, R0f.xy);
 // 0
 R126f.x = R1f.x + R0f.x;
 PV0f.x = R126f.x;
@@ -214,11 +255,11 @@ passPixelColor0 = vec4(R0f.x, R0f.y, R0f.z, R0f.w);
 
 vec3 color = (passPixelColor0.xyz);
 color = TonemapPass(color);
-const vec3 LumCoeff = vec3(0.2125, 0.7154, 0.0721);	
+const vec3 LumCoeff = vec3(0.2125, 0.7154, 0.0721);
 vec3 AvgLumin = vec3(AvgLumR, AvgLumG, AvgLumB);
 vec3 brtColor = color * brt;
 vec3 intensity = vec3(dot(color, LumCoeff));
 vec3 satColor = mix(intensity, color, 1.);
 vec3 conColor = mix(AvgLumin, satColor, con);
-passPixelColor0 = vec4(conColor, R0f.w);
+passPixelColor0 = vec4(conColor, R0f.w); 
 }
